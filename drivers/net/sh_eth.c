@@ -1,7 +1,7 @@
 /*
  * sh_eth.c - Driver for Renesas ethernet controler.
  *
- * Copyright (C) 2013-2014  Renesas Electronics Corporation
+ * Copyright (C) 2013-2015  Renesas Electronics Corporation
  * Copyright (C) 2008, 2011 Renesas Solutions Corp.
  * Copyright (c) 2008, 2011 Nobuhiro Iwamatsu
  * Copyright (c) 2007 Carlos Munoz <carlos@kenati.com>
@@ -449,7 +449,8 @@ static int sh_eth_config(struct sh_eth_dev *eth, bd_t *bd)
 	}
 	phy = port_info->phydev;
 #if defined(CONFIG_R8A7790) || defined(CONFIG_R8A7791) || \
-	defined(CONFIG_R8A7793) || defined(CONFIG_R8A7794)
+	defined(CONFIG_R8A7793) || defined(CONFIG_R8A7794) || \
+	defined(CONFIG_R8A7794X)
 	ret = phy_read(phy, MDIO_DEVAD_NONE, 0x1e);
 	ret &= ~0xc000;
 	ret |= 0x4000;
@@ -472,7 +473,7 @@ static int sh_eth_config(struct sh_eth_dev *eth, bd_t *bd)
 		sh_eth_write(eth, 1, RTRATE);
 #elif defined(CONFIG_CPU_SH7724) || defined(CONFIG_R8A7790) || \
 		defined(CONFIG_R8A7791) || defined(CONFIG_R8A7793) || \
-		defined(CONFIG_R8A7794)
+		defined(CONFIG_R8A7794) || defined(CONFIG_R8A7794X)
 		val = ECMR_RTM;
 #endif
 	} else if (phy->speed == 10) {
