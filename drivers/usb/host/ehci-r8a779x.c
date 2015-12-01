@@ -1,7 +1,7 @@
 /*
  *  EHCI HCD (Host Controller Driver) for USB.
  *
- *  Copyright (C) 2013-2014 Renesas Electronics Corporation
+ *  Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -30,6 +30,8 @@
 #define PHYS_OFFSET	GOSE_SDRAM_BASE
 #elif defined(ALT_SDRAM_BASE)
 #define PHYS_OFFSET	ALT_SDRAM_BASE
+#elif defined(ALEX_SDRAM_BASE)
+#define PHYS_OFFSET	ALEX_SDRAM_BASE
 #else
 #error
 #endif
