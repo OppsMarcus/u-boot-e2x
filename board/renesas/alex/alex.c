@@ -260,6 +260,42 @@ void reset_cpu(ulong addr)
 	i2c_write(DA9063_I2C_ADDR, REG_CONTROL_F, 1, &val, 1);
 }
 
+enum {
+	MSTP00, MSTP01, MSTP02, MSTP03, MSTP04, MSTP05,
+	MSTP07, MSTP08, MSTP09, MSTP10,
+	MSTP_NR,
+};
+
+struct mstp_ctl {
+	u32 s_addr;
+	u32 s_dis;
+	u32 s_ena;
+	u32 r_addr;
+	u32 r_dis;
+	u32 r_ena;
+} mstptbl[MSTP_NR] = {
+	[MSTP00] = { SMSTPCR0,  0x00440001, 0x00400000,
+		     RMSTPCR0,  0x00440001, 0x00000000 },
+	[MSTP01] = { SMSTPCR1,  0x9168998A, 0x00000000,
+		     RMSTPCR1,  0x9168998A, 0x00000000 },
+	[MSTP02] = { SMSTPCR2,  0x100C2120, 0x00002000,
+		     RMSTPCR2,  0x100C2120, 0x00000000 },
+	[MSTP03] = { SMSTPCR3,  0xEC087800, 0x00000000,
+		     RMSTPCR3,  0xEC087800, 0x00000000 },
+	[MSTP04] = { SMSTPCR4,  0x000003C4, 0x00000180,
+		     RMSTPCR4,  0x000003C4, 0x00000000 },
+	[MSTP05] = { SMSTPCR5,  0x40800004, 0x00000000,
+		     RMSTPCR5,  0x40800004, 0x00000000 },
+	[MSTP07] = { SMSTPCR7,  0x0DBFE078, 0x00200000,
+		     RMSTPCR7,  0x0DBFE078, 0x00000000 },
+	[MSTP08] = { SMSTPCR8,  0x00003C03, 0x00000000,
+		     RMSTPCR8,  0x00003C03, 0x00000000 },
+	[MSTP09] = { SMSTPCR9,  0xF8479F88, 0x00000000,
+		     RMSTPCR9,  0xF8479F88, 0x00000000 },
+	[MSTP10] = { SMSTPCR10, 0x7E3EFFE0, 0x00000000,
+		     RMSTPCR10, 0x7E3EFFE0, 0x00000000 },
+};
+
 #define TSTR1   4
 #define TSTR1_STR3      0x1
 
@@ -273,8 +309,13 @@ void arch_preboot_os()
 	val &= ~TSTR1_STR3;
 	writeb(val, TMU_BASE + TSTR1);
 
-	/* TMU1 */
-	val = readl(MSTPSR1);
-	val |= TMU1_MSTP111;
-	writel(val, SMSTPCR1);
+	/* stop all module clock*/
+	for (i = MSTP00; i < MSTP_NR; i++) {
+		val = readl(mstptbl[i].s_addr);
+		writel((val | mstptbl[i].s_dis) & ~(mstptbl[i].s_ena),
+		       mstptbl[i].s_addr);
+		val = readl(mstptbl[i].r_addr);
+		writel((val | mstptbl[i].r_dis) & ~(mstptbl[i].r_ena),
+		       mstptbl[i].r_addr);
+	}
 }
