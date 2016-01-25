@@ -53,6 +53,7 @@ void s_init(void)
 
 #define TMU1_MSTP111    (1 << 11)
 
+#define I2C1_MSTP930	(1 << 30)
 #define SCIF0_MSTP721	(1 << 21)
 
 #define ETHER_MSTP813	(1 << 13)
@@ -65,6 +66,11 @@ int board_early_init_f(void)
 	val = readl(MSTPSR1);
 	val &= ~TMU1_MSTP111;
 	writel(val, SMSTPCR1);
+
+	/* I2C1 */
+	val = readl(MSTPSR9);
+	val &= ~I2C1_MSTP930;
+	writel(val, SMSTPCR9);
 
 	/* SCIF0 */
 	val = readl(MSTPSR7);
@@ -168,6 +174,16 @@ int board_late_init(void)
 
 void reset_cpu(ulong addr)
 {
+	u8 val;
+
+	i2c_init(CONFIG_SYS_I2C_SPEED, 0);
+	i2c_read(DA9063_I2C_ADDR, REG_LDO5_CONT, 1, &val, 1);
+	val |= L_LDO5_PD_DIS;
+	i2c_write(DA9063_I2C_ADDR, REG_LDO5_CONT, 1, &val, 1);
+
+	i2c_read(DA9063_I2C_ADDR, REG_CONTROL_F, 1, &val, 1);
+	val |= L_SHUTDOWN;
+	i2c_write(DA9063_I2C_ADDR, REG_CONTROL_F, 1, &val, 1);
 }
 
 #define TSTR1   4
