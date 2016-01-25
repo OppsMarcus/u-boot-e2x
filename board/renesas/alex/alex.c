@@ -170,6 +170,15 @@ int board_init(void)
 	gpio_direction_output(GPIO_GP_4_24, 1);
 	gpio_direction_output(GPIO_GP_4_25, 1);
 
+	do {
+		val = readl(0xE6600B0C) & 0xF;
+	} while (val != 0x2);
+	writel(0x2, 0xE6600B80);
+	do {
+		val = readl(0xE6600A14) & 0x1;
+	} while (val != 0x0);
+	writel(0x0, 0xE660012C);
+
 	/* wait 5ms */
 	udelay(5000);
 
