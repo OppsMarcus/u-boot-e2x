@@ -54,9 +54,16 @@ void s_init(void)
 #define TMU1_MSTP111    (1 << 11)
 
 #define I2C1_MSTP930	(1 << 30)
+#define SDHI0_MSTP314	(1 << 14)
+#define SDHI1_MSTP313	(1 << 13)
+#define SDHI2_MSTP312	(1 << 12)
+
 #define SCIF0_MSTP721	(1 << 21)
 
 #define ETHER_MSTP813	(1 << 13)
+
+#define SD2CKCR		0xE6150078
+#define SD2_97500KHZ	0x7
 
 int board_early_init_f(void)
 {
@@ -81,6 +88,17 @@ int board_early_init_f(void)
 	val = readl(MSTPSR8);
 	val &= ~ETHER_MSTP813;
 	writel(val, SMSTPCR8);
+
+	/* MMC/SD */
+	val = readl(MSTPSR3);
+	val &= ~(SDHI0_MSTP314 | SDHI2_MSTP312);
+	writel(val, SMSTPCR3);
+
+	/*
+	 * SD0 clock is set to 97.5MHz by default.
+	 * Set SD2 to the 97.5MHz as well.
+	 */
+	writel(SD2_97500KHZ, SD2CKCR);
 
 	return 0;
 }
@@ -113,6 +131,26 @@ int board_init(void)
 	gpio_request(GPIO_GP_5_16, NULL);
 	gpio_direction_output(GPIO_GP_5_16, 0);
 
+#ifdef CONFIG_SH_SDHI
+	gpio_request(GPIO_FN_SD0_DATA0, NULL);
+	gpio_request(GPIO_FN_SD0_DATA1, NULL);
+	gpio_request(GPIO_FN_SD0_DATA2, NULL);
+	gpio_request(GPIO_FN_SD0_DATA3, NULL);
+	gpio_request(GPIO_FN_SD0_CLK, NULL);
+	gpio_request(GPIO_FN_SD0_CMD, NULL);
+	gpio_request(GPIO_FN_SD0_CD, NULL);
+	gpio_request(GPIO_FN_SD0_WP, NULL);
+
+	gpio_request(GPIO_FN_SD2_DATA0, NULL);
+	gpio_request(GPIO_FN_SD2_DATA1, NULL);
+	gpio_request(GPIO_FN_SD2_DATA2, NULL);
+	gpio_request(GPIO_FN_SD2_DATA3, NULL);
+	gpio_request(GPIO_FN_SD2_CLK, NULL);
+	gpio_request(GPIO_FN_SD2_CMD, NULL);
+	gpio_request(GPIO_FN_SD2_CD, NULL);
+	gpio_request(GPIO_FN_SD2_WP, NULL);
+#endif
+
 	sh_timer_init();
 
 	gpio_request(GPIO_GP_5_0, NULL);	/* PHY_RST */
@@ -120,6 +158,17 @@ int board_init(void)
 	mdelay(20);
 	gpio_set_value(GPIO_GP_5_0, 1);
 	udelay(1);
+
+	/* sdhi0 */
+	gpio_request(GPIO_GP_4_22, NULL);
+	gpio_request(GPIO_GP_4_23, NULL);
+	gpio_direction_output(GPIO_GP_4_22, 1);
+	gpio_direction_output(GPIO_GP_4_23, 1);
+	/* sdhi2 */
+	gpio_request(GPIO_GP_4_24, NULL);
+	gpio_request(GPIO_GP_4_25, NULL);
+	gpio_direction_output(GPIO_GP_4_24, 1);
+	gpio_direction_output(GPIO_GP_4_25, 1);
 
 	/* wait 5ms */
 	udelay(5000);
@@ -170,6 +219,22 @@ void dram_init_banksize(void)
 int board_late_init(void)
 {
 	return 0;
+}
+
+int board_mmc_init(bd_t *bis)
+{
+	int ret = 0;
+
+#ifdef CONFIG_SH_SDHI
+	/* use SDHI0,2 */
+	ret = sdhi_mmc_init(SDHI0_BASE, 0);
+	if (ret)
+		return ret;
+
+	ret = sdhi_mmc_init(SDHI2_BASE, 0);
+#endif
+
+	return ret;
 }
 
 void reset_cpu(ulong addr)
