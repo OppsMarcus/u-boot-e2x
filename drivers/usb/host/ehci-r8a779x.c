@@ -36,7 +36,25 @@
 #error
 #endif
 
-#define SMSTPCR703      0x08
+#ifdef CONFIG_R8A7794X
+#define BASE_HSUSB      0xE6590000
+#define REG_LPSTS       (BASE_HSUSB + 0x0102)   /* 16bit */
+#define SUSPM           0x4000
+#define SUSPM_SUSPEND   0x0000
+#define SUSPM_NORMAL    0x4000
+#define REG_UGCTRL      (BASE_HSUSB + 0x0180)   /* 32bit */
+#define PLLRESET        0x00000001
+#define REG_UGCTRL2     (BASE_HSUSB + 0x0184)   /* 32bit */
+#define USB0SEL         0x00000030
+#define USB0SEL_EHCI    0x00000010
+#define USB0SEL_HSUSB   0x00000020
+#define USB0SEL_OTG     0x00000030
+#endif
+
+#define SMSTPCR703      (0x1 << 3)
+#define SMSTPCR704      (0x1 << 4)
+#define SMSTPCR705      (0x1 << 5)
+#define SMSTPCR706      (0x1 << 6)
 
 static u32 usb_base_address[CONFIG_USB_MAX_CONTROLLER_COUNT] = {
 	0xee080000,	/* USB0 (EHCI) */
@@ -54,7 +72,9 @@ int ehci_hcd_stop(int index)
 
 	base = usb_base_address[index];
 
+#ifndef CONFIG_R8A7794X
 	writel(0, base + AHB_BUS_CTR);
+#endif
 
 	/* reset ehci */
 	data = readl(base + EHCI_USBCMD);
@@ -70,24 +90,66 @@ int ehci_hcd_stop(int index)
 	if (i == 100)
 		printf("error : ehci(%d) reset failed.\n", index);
 
+#ifdef CONFIG_R8A7794X
+	switch (index) {
+	case 0:
+		/* Stops supply of EHCI0 clock signal */
+		setbits_le32(SMSTPCR7, SMSTPCR703);
+		/* Stops supply of USBHS0 clock signal */
+		setbits_le32(SMSTPCR7, SMSTPCR704);
+		break;
+	case 1:
+		/* Stops supply of EHCI1 clock signal */
+		setbits_le32(SMSTPCR7, SMSTPCR705);
+		/* Stops supply of USBHS1 clock signal */
+		setbits_le32(SMSTPCR7, SMSTPCR706);
+		break;
+	default:
+		return -1;
+	}
+#else
 	if (index == (CONFIG_USB_MAX_CONTROLLER_COUNT-1)) {
 		data = readl(SMSTPCR7);
 		data |= SMSTPCR703;
 		writel(data, SMSTPCR7);
 	}
+#endif
 
 	return 0;
 }
 
 int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 {
-	u32 data;
 	u32 base;
-	u32 phys_base;
 	struct rmobile_ehci_reg *rehci;
+#ifdef CONFIG_R8A7794X
+	struct ahb_bridge *ahb;
+	struct usb_core_reg *ucore;
+#else
+	u32 data;
+	u32 phys_base;
+#endif
 	uint32_t cap_base;
 
 	base = usb_base_address[index];
+#ifdef CONFIG_R8A7794X
+	switch (index) {
+	case 0:
+		/* Enables supply of EHCI0 clock signal */
+		clrbits_le32(SMSTPCR7, SMSTPCR703);
+		/* Enables supply of USBHS0 clock signal */
+		clrbits_le32(SMSTPCR7, SMSTPCR704);
+		break;
+	case 1:
+		/* Enables supply of EHCI1 clock signal */
+		clrbits_le32(SMSTPCR7, SMSTPCR705);
+		/* Enables supply of USBHS1 clock signal */
+		clrbits_le32(SMSTPCR7, SMSTPCR706);
+		break;
+	default:
+		return -1;
+	}
+#else
 	phys_base = base;
 
 	if (index == 0) {
@@ -95,10 +157,16 @@ int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 		data &= ~(SMSTPCR703);
 		writel(data, SMSTPCR7);
 	}
+#endif
 
 	/* init */
 	rehci = (struct rmobile_ehci_reg *)(base + EHCI_OFFSET);
+#ifdef CONFIG_R8A7794X
+	ahb = (struct ahb_bridge *)(uintptr_t)(base + AHB_OFFSET);
+	ucore = (struct usb_core_reg *)(uintptr_t)(base + USB_CORE_OFFSET);
+#endif
 
+#ifndef CONFIG_R8A7794X
 	/* Clock & Reset & Direct Power Down */
 	data = readl(base + USBCTR);
 	data &= ~(DIRPD | PCICLK_MASK | USBH_RST);
@@ -137,13 +205,31 @@ int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 	data = SERREN | PERREN | MASTEREN | MEMEN;
 	writel(data, base + OHCI_CMND_STS);
 	writel(data, base + EHCI_CMND_STS);
+#endif
 
+#ifdef CONFIG_R8A7794X
+	/* INT_ENALBLE */
+	setbits_le32(&ahb->int_enable, USBH_INTBEN | USBH_INTAEN);
+	writel(0x014e029b, &ucore->spd_rsm_timset);
+	writel(0x000209ab, &ucore->oc_timset);
+#else
 	/* PCI_INT_ENABLE */
 	data = __raw_readl(base + PCI_INT_ENABLE);
 	data |= USBH_PMEEN | USBH_INTBEN | USBH_INTAEN;
 	writel(data | USBH_PMEEN | USBH_INTBEN | USBH_INTAEN,
 			base + PCI_INT_ENABLE);
+#endif
 
+#ifdef CONFIG_R8A7794X
+	/* USBHS PHY power on */
+	clrbits_le32(REG_UGCTRL, PLLRESET);
+	/* Choice USB0SEL */
+	clrsetbits_le32(REG_UGCTRL2, USB0SEL, USB0SEL_EHCI);
+	/* Clock & Reset */
+	clrbits_le32(&ahb->usbctr, PLL_RST);
+	/* low power status */
+	clrsetbits_le16(REG_LPSTS, SUSPM, SUSPM_NORMAL);
+#endif
 	*hccr = (struct ehci_hccr *)((uint32_t)&rehci->HCIVERSION);
 	cap_base = ehci_readl(&(*hccr)->cr_capbase);
 	*hcor = (struct ehci_hcor *)((uint32_t)*hccr + HC_LENGTH(cap_base));
