@@ -704,8 +704,6 @@ int sdhi_mmc_init(unsigned long addr, int ch)
 
 	mmc->f_min = CLKDEV_INIT;
 	mmc->f_max = CLKDEV_HS_DATA;
-	mmc->voltages = MMC_VDD_32_33 | MMC_VDD_33_34;
-	mmc->host_caps = MMC_MODE_4BIT | MMC_MODE_HS;
 	memcpy(mmc->name, DRIVER_NAME, sizeof(DRIVER_NAME));
 	mmc->send_cmd = sdhi_request;
 	mmc->set_ios = sdhi_set_ios;
@@ -727,9 +725,14 @@ int sdhi_mmc_init(unsigned long addr, int ch)
 	if ((ch == 0) || (ch == 2)) {
 		host->quirks = SH_SDHI_QUIRK_16BIT_BUF;
 		host->bus_shift = 1;
+		mmc->voltages = MMC_VDD_32_33 | MMC_VDD_33_34;
+		mmc->host_caps = MMC_MODE_4BIT | MMC_MODE_HS;
 	} else if (ch == 1) {
 		host->quirks = SH_SDHI_QUIRK_64BIT_BUF;
 		host->bus_shift = 2;
+		mmc->voltages = MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34;
+		mmc->host_caps = MMC_MODE_4BIT | MMC_MODE_8BIT | MMC_MODE_HS |
+				 MMC_MODE_HS_52MHz | MMC_MODE_HC;
 	}
 #else
 #error
