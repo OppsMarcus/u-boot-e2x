@@ -3,7 +3,7 @@
  *
  * SD/MMC driver.
  *
- * Copyright (C) 2011,2013-2015 Renesas Electronics Corporation
+ * Copyright (C) 2011,2013-2016 Renesas Electronics Corporation
  * Copyright (C) 2008-2009 Renesas Solutions Corp.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -454,6 +454,15 @@ static unsigned short sdhi_set_cmd(struct sdhi_host *host,
 		else /* SD_SWITCH */
 			opc = SDHI_SD_SWITCH;
 		break;
+#ifdef CONFIG_SH_SDHI_MMC
+	case MMC_CMD_SEND_OP_COND:
+		opc = SDHI_MMC_SEND_OP_COND;
+		break;
+	case MMC_CMD_SEND_EXT_CSD:
+		if (data)
+			opc = SDHI_MMC_SEND_EXT_CSD;
+		break;
+#endif
 	default:
 		break;
 	}
@@ -478,6 +487,9 @@ static unsigned short sdhi_data_trans(struct sdhi_host *host,
 	case MMC_CMD_READ_SINGLE_BLOCK:
 	case SDHI_SD_APP_SEND_SCR:
 	case SDHI_SD_SWITCH: /* SD_SWITCH */
+#ifdef CONFIG_SH_SDHI_MMC
+	case SDHI_MMC_SEND_EXT_CSD:
+#endif
 		ret = sdhi_single_read(host, data);
 		break;
 	default:
@@ -627,12 +639,27 @@ static void sdhi_set_ios(struct mmc *mmc)
 		break;
 	}
 
+#ifdef CONFIG_SH_SDHI_MMC
+	if (mmc->bus_width == 8)
+		sdhi_writew(host, SDHI_OPTION,
+			OPT_BUS_WIDTH_8 | (~OPT_BUS_WIDTH_M &
+			sdhi_readw(host, SDHI_OPTION)));
+	else if (mmc->bus_width == 4)
+		sdhi_writew(host, SDHI_OPTION,
+			OPT_BUS_WIDTH_4 | (~OPT_BUS_WIDTH_M &
+			sdhi_readw(host, SDHI_OPTION)));
+	else
+		sdhi_writew(host, SDHI_OPTION,
+			OPT_BUS_WIDTH_1 | (~OPT_BUS_WIDTH_M &
+			sdhi_readw(host, SDHI_OPTION)));
+#else
 	if (mmc->bus_width == 4)
 		sdhi_writew(host, SDHI_OPTION, ~OPT_BUS_WIDTH_1 &
 					sdhi_readw(host, SDHI_OPTION));
 	else
 		sdhi_writew(host, SDHI_OPTION, OPT_BUS_WIDTH_1 |
 					sdhi_readw(host, SDHI_OPTION));
+#endif
 
 	pr_debug("clock = %d, buswidth = %d\n", mmc->clock, mmc->bus_width);
 }
