@@ -3,7 +3,7 @@
  *
  * SD/MMC driver.
  *
- * Copyright (C) 2013-2014 Renesas Electronics Corporation
+ * Copyright (C) 2013-2016 Renesas Electronics Corporation
  * Copyright (C) 2008-2009 Renesas Solutions Corp.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -173,6 +173,10 @@
 #define CLKDEV_MMC_DATA			20000000	/* 20MHz */
 #define	CLKDEV_INIT			400000		/* 100 - 400 KHz */
 
+/* For quirk */
+#define SH_SDHI_QUIRK_16BIT_BUF		(1 << 0)
+#define SH_SDHI_QUIRK_64BIT_BUF		(1 << 1)
+
 struct sdhi_host {
 	struct mmc	*mmc;
 	struct mmc_data	*data;
@@ -181,6 +185,7 @@ struct sdhi_host {
 	unsigned int	power_mode;
 	int		ch;
 	int		bus_shift;
+	unsigned long	quirks;
 };
 
 static unsigned short g_wait_int[CONFIG_MMC_SH_SDHI_NR_CHANNEL];
@@ -196,4 +201,13 @@ static inline u16 sdhi_readw(struct sdhi_host *host, int reg)
 	return readw(host->addr + (reg << host->bus_shift));
 }
 
+static inline void sdhi_writeq(struct sdhi_host *host, int reg, u64 val)
+{
+	*(volatile u64 *)(host->addr + (reg << host->bus_shift)) = val;
+}
+
+static inline u64 sdhi_readq(struct sdhi_host *host, int reg)
+{
+	return *(volatile u64 *)(host->addr + (reg << host->bus_shift));
+}
 #endif /* _SH_SDHI_H_ */
