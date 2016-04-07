@@ -262,6 +262,7 @@ int board_mmc_init(bd_t *bis)
 
 void reset_cpu(ulong addr)
 {
+#ifdef CONFIG_I2C_DA9063_USE
 	u8 val;
 
 	i2c_init(CONFIG_SYS_I2C_SPEED, 0);
@@ -272,6 +273,7 @@ void reset_cpu(ulong addr)
 	i2c_read(DA9063_I2C_ADDR, REG_CONTROL_F, 1, &val, 1);
 	val |= L_SHUTDOWN;
 	i2c_write(DA9063_I2C_ADDR, REG_CONTROL_F, 1, &val, 1);
+#endif
 }
 
 enum {
