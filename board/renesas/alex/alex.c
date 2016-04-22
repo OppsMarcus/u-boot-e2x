@@ -262,9 +262,8 @@ int board_mmc_init(bd_t *bis)
 
 void reset_cpu(ulong addr)
 {
-#ifdef CONFIG_I2C_DA9063_USE
 	u8 val;
-
+#ifdef CONFIG_I2C_DA9063_USE
 	i2c_init(CONFIG_SYS_I2C_SPEED, 0);
 	i2c_read(DA9063_I2C_ADDR, REG_LDO5_CONT, 1, &val, 1);
 	val |= L_LDO5_PD_DIS;
@@ -273,6 +272,21 @@ void reset_cpu(ulong addr)
 	i2c_read(DA9063_I2C_ADDR, REG_CONTROL_F, 1, &val, 1);
 	val |= L_SHUTDOWN;
 	i2c_write(DA9063_I2C_ADDR, REG_CONTROL_F, 1, &val, 1);
+#else
+	/* Enable RWDT clock */
+	val = readl(MSTPSR4);
+	val &= ~RWDT_MSTP402;
+	writel(val, SMSTPCR4);
+
+	/* Enable RWDT reset request */
+	writel(RST_WDTRSTCR_RWDT, RST_BASE + RST_WDTRSTCR);
+	/* Set boot address */
+	writel(RST_CABAR_BOOTADR, RST_BASE + RST_CA7BAR);
+
+	/* Set the wdt counter to overflow just before */
+	writel(RWDT_RWTCNT_FULL, RWDT_BASE + RWDT_RWTCNT);
+	/* Start count up of RWDT */
+	writel(RWDT_RWTCSRA_START, RWDT_BASE + RWDT_RWTCSRA);
 #endif
 }
 
