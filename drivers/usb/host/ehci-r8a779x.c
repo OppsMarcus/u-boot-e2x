@@ -37,14 +37,14 @@
 #endif
 
 #ifdef CONFIG_R8A7794X
-#define BASE_HSUSB      0xE6590000
-#define REG_LPSTS       (BASE_HSUSB + 0x0102)   /* 16bit */
+/* USB High-Speed Module (HS-USB) */
+#define REG_LPSTS       0x0102		/* 16bit */
 #define SUSPM           0x4000
 #define SUSPM_SUSPEND   0x0000
 #define SUSPM_NORMAL    0x4000
-#define REG_UGCTRL      (BASE_HSUSB + 0x0180)   /* 32bit */
+#define REG_UGCTRL      0x0180		/* 32bit */
 #define PLLRESET        0x00000001
-#define REG_UGCTRL2     (BASE_HSUSB + 0x0184)   /* 32bit */
+#define REG_UGCTRL2     0x0184		/* 32bit */
 #define USB0SEL         0x00000030
 #define USB0SEL_EHCI    0x00000010
 #define USB0SEL_HSUSB   0x00000020
@@ -63,6 +63,13 @@ static u32 usb_base_address[CONFIG_USB_MAX_CONTROLLER_COUNT] = {
 #endif
 	0xee0c0000,	/* USB2 */
 };
+
+#ifdef CONFIG_R8A7794X
+static u32 hsusb_base_address[CONFIG_USB_MAX_CONTROLLER_COUNT] = {
+	0xE6590000,	/* HS-USB (Channel 0) */
+	0xE6598000,	/* HS-USB (Channel 1) */
+};
+#endif
 
 int ehci_hcd_stop(int index)
 {
@@ -208,10 +215,68 @@ int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 #endif
 
 #ifdef CONFIG_R8A7794X
-	/* INT_ENALBLE */
-	setbits_le32(&ahb->int_enable, USBH_INTBEN | USBH_INTAEN);
-	writel(0x014e029b, &ucore->spd_rsm_timset);
-	writel(0x000209ab, &ucore->oc_timset);
+	switch (index) {
+	case 0:		/* HS-USB Channel 0(CN6) */
+		/* USBHS PHY PLL reset release */
+		clrbits_le32(hsusb_base_address[0]+REG_UGCTRL, PLLRESET);
+		mdelay(100);  /* 100ms wait */
+
+		/* HS-USB Channel 0(CN6)                    */
+		/*    -> 10:Select HS USB module for USB2.0 */
+		clrsetbits_le32(hsusb_base_address[index]+REG_UGCTRL2
+				, USB0SEL, USB0SEL_HSUSB);
+
+		/* low power status */
+		clrsetbits_le16(hsusb_base_address[index]+REG_LPSTS
+				, SUSPM, SUSPM_NORMAL);
+
+		mdelay(100);  /* 100ms wait */
+
+		/* Clock & Reset */
+		clrbits_le32(&ahb->usbctr, PLL_RST);
+
+		/* INT_ENALBLE ALL DISABLE */
+		clrbits_le32(&ahb->int_enable, (WAKEON_INTEN | UCOM_INTEN
+				| USBH_INTBEN | USBH_INTAEN | USBH_INTEN));
+
+		/* Suspend/Resume Timer Setting */
+		/* (TIMER_CONNECT:334cycle(us) / TIMER_RESUME:667cycle(us)) */
+		writel(0x014e029b, &ucore->spd_rsm_timset);
+
+		/* Overcurrent Detection Timer Setting */
+		/* 133547cycle(us) */
+		writel(0x000209ab, &ucore->oc_timset);
+
+		break;
+	case 1:		/* HS-USB Channel 1(CN5) */
+		/* HS-USB Channel 1(CN5)                            */
+		/*    -> 01:Select EHCI/OHCI host module for USB2.0 */
+		clrsetbits_le32(hsusb_base_address[index]+REG_UGCTRL2
+				, USB0SEL, USB0SEL_EHCI);
+
+		/* low power status */
+		clrsetbits_le16(hsusb_base_address[index]+REG_LPSTS
+				, SUSPM, SUSPM_NORMAL);
+
+		mdelay(100);  /* 100ms wait */
+
+		/* Clock & Reset */
+		clrbits_le32(&ahb->usbctr, PLL_RST);
+
+		/* INT_ENALBLE */
+		setbits_le32(&ahb->int_enable, USBH_INTBEN | USBH_INTAEN);
+
+		/* Suspend/Resume Timer Setting */
+		/* (TIMER_CONNECT:334cycle(us) / TIMER_RESUME:667cycle(us)) */
+		writel(0x014e029b, &ucore->spd_rsm_timset);
+
+		/* Overcurrent Detection Timer Setting 133547cycle(us) */
+		writel(0x000209ab, &ucore->oc_timset);
+
+		break;
+	default:
+		return -1;
+	}
 #else
 	/* PCI_INT_ENABLE */
 	data = __raw_readl(base + PCI_INT_ENABLE);
@@ -220,16 +285,6 @@ int ehci_hcd_init(int index, struct ehci_hccr **hccr, struct ehci_hcor **hcor)
 			base + PCI_INT_ENABLE);
 #endif
 
-#ifdef CONFIG_R8A7794X
-	/* USBHS PHY power on */
-	clrbits_le32(REG_UGCTRL, PLLRESET);
-	/* Choice USB0SEL */
-	clrsetbits_le32(REG_UGCTRL2, USB0SEL, USB0SEL_EHCI);
-	/* Clock & Reset */
-	clrbits_le32(&ahb->usbctr, PLL_RST);
-	/* low power status */
-	clrsetbits_le16(REG_LPSTS, SUSPM, SUSPM_NORMAL);
-#endif
 	*hccr = (struct ehci_hccr *)((uint32_t)&rehci->HCIVERSION);
 	cap_base = ehci_readl(&(*hccr)->cr_capbase);
 	*hcor = (struct ehci_hcor *)((uint32_t)*hccr + HC_LENGTH(cap_base));
