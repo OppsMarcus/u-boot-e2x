@@ -153,19 +153,32 @@
 
 /* network */
 #define CONFIG_NFS_TIMEOUT 10000UL
+#if !defined(CONFIG_ALEX_ETHERB)
 /* SH Ether */
-#define	CONFIG_NET_MULTI
 #define CONFIG_SH_ETHER
+#endif
 #define CONFIG_SH_ETHER_USE_PORT	0
 #define CONFIG_SH_ETHER_PHY_ADDR	0x1
 #define CONFIG_SH_ETHER_PHY_MODE PHY_INTERFACE_MODE_RMII
 #define CONFIG_SH_ETHER_CACHE_WRITEBACK
 #define CONFIG_SH_ETHER_CACHE_INVALIDATE
+
+/* Ethernet AVB */
+#if (defined(CONFIG_ALEX_ETHERB) || !defined(CONFIG_SH_ETHER))
+#define CONFIG_RAVB
+#define CONFIG_RAVB_PHY_ADDR	0x0
+#define CONFIG_RAVB_PHY_MODE PHY_INTERFACE_MODE_GMII
+#endif
+
+/* Renesas Ethernet controler Common */
+#if (defined(CONFIG_SH_ETHER) || defined(CONFIG_RAVB))
+#define CONFIG_NET_MULTI
 #define CONFIG_PHYLIB
 #define CONFIG_PHY_MICREL
 #define CONFIG_BITBANGMII
 #define CONFIG_BITBANGMII_MULTI
 #define CONFIG_SH_ETHER_BITBANG
+#endif
 
 /* Board Clock */
 #define	CONFIG_SYS_CLK_FREQ	32500000
