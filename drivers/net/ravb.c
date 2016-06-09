@@ -532,9 +532,6 @@ static void ravb_halt(struct eth_device *dev)
 {
 	struct ravb_dev *eth = dev->priv;
 	ravb_reset(eth);
-	ravb_tx_desc_free(eth);
-	ravb_rx_desc_free(eth);
-	ravb_desc_bat_free(eth);
 	ravb_stop(eth);
 }
 
