@@ -77,6 +77,10 @@ void s_init(void)
 #define ETHER_MSTP813	(1 << 13)
 #define AVB_MSTP812	(1 << 12)
 
+#define SDCKCR		0xE6150074
+#define SDH_780MHZ	(0x0 << 8)
+#define SD0_97500KHZ	(0x6 << 4)
+#define SD1_156000KHZ	0xC
 #define SD2CKCR		0xE6150078
 #define SD2_97500KHZ	0x7
 
@@ -109,13 +113,16 @@ int board_early_init_f(void)
 
 	/* MMC/SD */
 	val = readl(MSTPSR3);
-	val &= ~(SDHI0_MSTP314 | SDHI2_MSTP312);
+	val &= ~(SDHI0_MSTP314 | SDHI1_MSTP313 | SDHI2_MSTP312);
 	writel(val, SMSTPCR3);
 
 	/*
 	 * SD0 clock is set to 97.5MHz by default.
+	 * Set SD1 to the 156MHz as well.
 	 * Set SD2 to the 97.5MHz as well.
 	 */
+	writel(SDH_780MHZ | SD0_97500KHZ | SD1_156000KHZ,
+		SDCKCR);
 	writel(SD2_97500KHZ, SD2CKCR);
 
 	return 0;
@@ -213,6 +220,17 @@ int board_init(void)
 	gpio_request(GPIO_FN_SD2_CMD, NULL);
 	gpio_request(GPIO_FN_SD2_CD, NULL);
 	gpio_request(GPIO_FN_SD2_WP, NULL);
+
+	gpio_request(GPIO_FN_MMC0_CLK_SDHI1_CLK, NULL);
+	gpio_request(GPIO_FN_MMC0_CMD_SDHI1_CMD, NULL);
+	gpio_request(GPIO_FN_MMC0_D0_SDHI1_D0, NULL);
+	gpio_request(GPIO_FN_MMC0_D1_SDHI1_D1, NULL);
+	gpio_request(GPIO_FN_MMC0_D2_SDHI1_D2, NULL);
+	gpio_request(GPIO_FN_MMC0_D3_SDHI1_D3, NULL);
+	gpio_request(GPIO_FN_MMC0_D4, NULL);
+	gpio_request(GPIO_FN_MMC0_D5, NULL);
+	gpio_request(GPIO_FN_MMC0_D6, NULL);
+	gpio_request(GPIO_FN_MMC0_D7, NULL);
 #endif
 
 	sh_timer_init();
@@ -227,6 +245,9 @@ int board_init(void)
 	gpio_request(GPIO_GP_4_25, NULL);
 	gpio_direction_output(GPIO_GP_4_24, 1);
 	gpio_direction_output(GPIO_GP_4_25, 1);
+	/* eMMC */
+	gpio_request(GPIO_GP_5_25, NULL);
+	gpio_direction_output(GPIO_GP_5_25, 1);
 
 	do {
 		val = readl(0xE6600B0C) & 0xF;
@@ -297,12 +318,18 @@ int board_mmc_init(bd_t *bis)
 	int ret = 0;
 
 #ifdef CONFIG_SH_SDHI
-	/* use SDHI0,2 */
+	/* use SDHI0 */
 	ret = sdhi_mmc_init(SDHI0_BASE, 0);
 	if (ret)
 		return ret;
 
-	ret = sdhi_mmc_init(SDHI2_BASE, 0);
+	/* use SDHI1 for eMMC */
+	ret = sdhi_mmc_init(SDHI1_BASE, 1);
+	if (ret)
+		return ret;
+
+	/* use SDHI2 */
+	ret = sdhi_mmc_init(SDHI2_BASE, 2);
 #endif
 
 	return ret;
