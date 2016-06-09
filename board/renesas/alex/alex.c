@@ -75,6 +75,7 @@ void s_init(void)
 #define SCIF0_MSTP721	(1 << 21)
 
 #define ETHER_MSTP813	(1 << 13)
+#define AVB_MSTP812	(1 << 12)
 
 #define SD2CKCR		0xE6150078
 #define SD2_97500KHZ	0x7
@@ -98,9 +99,12 @@ int board_early_init_f(void)
 	val &= ~SCIF0_MSTP721;
 	writel(val, SMSTPCR7);
 
-	/* ETHER */
+	/* ETHER/AVB */
 	val = readl(MSTPSR8);
 	val &= ~ETHER_MSTP813;
+#ifdef CONFIG_RAVB
+	val &= ~AVB_MSTP812;
+#endif
 	writel(val, SMSTPCR8);
 
 	/* MMC/SD */
@@ -128,7 +132,46 @@ int board_init(void)
 	/* Init PFC controller */
 	r8a7794x_pinmux_init();
 
+#ifdef CONFIG_RAVB
+	/* EtherAVB Enable */
+	gpio_request(GPIO_FN_AVB_TXD0, NULL);
+	gpio_request(GPIO_FN_AVB_TXD1, NULL);
+	gpio_request(GPIO_FN_AVB_TXD2, NULL);
+	gpio_request(GPIO_FN_AVB_TXD3, NULL);
+	gpio_request(GPIO_FN_AVB_TXD4, NULL);
+	gpio_request(GPIO_FN_AVB_TXD5, NULL);
+	gpio_request(GPIO_FN_AVB_TXD6, NULL);
+	gpio_request(GPIO_FN_AVB_TXD7, NULL);
+	gpio_request(GPIO_FN_AVB_RXD1, NULL);
+	gpio_request(GPIO_FN_AVB_RXD2, NULL);
+	gpio_request(GPIO_FN_AVB_RXD3, NULL);
+	gpio_request(GPIO_FN_AVB_RXD4, NULL);
+	gpio_request(GPIO_FN_AVB_RXD5, NULL);
+	gpio_request(GPIO_FN_AVB_RXD6, NULL);
+	gpio_request(GPIO_FN_AVB_RXD7, NULL);
+	gpio_request(GPIO_FN_AVB_RX_ER, NULL);
+	gpio_request(GPIO_FN_AVB_RX_CLK, NULL);
+	gpio_request(GPIO_FN_AVB_RX_DV, NULL);
+	gpio_request(GPIO_FN_AVB_CRS, NULL);
+	gpio_request(GPIO_FN_AVB_MDC, NULL);
+	gpio_request(GPIO_FN_AVB_MDIO, NULL);
+	gpio_request(GPIO_FN_AVB_GTX_CLK, NULL);
+	gpio_request(GPIO_FN_AVB_GTXREFCLK, NULL);
+	gpio_request(GPIO_FN_AVB_TX_EN, NULL);
+	gpio_request(GPIO_FN_AVB_TX_ER, NULL);
+	gpio_request(GPIO_FN_AVB_TX_CLK, NULL);
+	gpio_request(GPIO_FN_AVB_COL, NULL);
+	gpio_request(GPIO_FN_AVB_RXD0, NULL);
+
+	gpio_request(GPIO_GP_5_0, NULL);	/* PHY_RST */
+	gpio_direction_output(GPIO_GP_5_0, 0);
+	mdelay(20);
+	gpio_set_value(GPIO_GP_5_0, 1);
+	udelay(1);
+#endif
+
 	/* ETHER Enable */
+#ifdef CONFIG_SH_ETHER
 	gpio_request(GPIO_FN_ETH_CRS_DV, NULL);
 	gpio_request(GPIO_FN_ETH_RX_ER, NULL);
 	gpio_request(GPIO_FN_ETH_RXD0, NULL);
@@ -144,6 +187,13 @@ int board_init(void)
 
 	gpio_request(GPIO_GP_5_16, NULL);
 	gpio_direction_output(GPIO_GP_5_16, 0);
+
+	gpio_request(GPIO_GP_5_0, NULL);	/* PHY_RST */
+	gpio_direction_output(GPIO_GP_5_0, 0);
+	mdelay(20);
+	gpio_set_value(GPIO_GP_5_0, 1);
+	udelay(1);
+#endif
 
 #ifdef CONFIG_SH_SDHI
 	gpio_request(GPIO_FN_SD0_DATA0, NULL);
@@ -166,12 +216,6 @@ int board_init(void)
 #endif
 
 	sh_timer_init();
-
-	gpio_request(GPIO_GP_5_0, NULL);	/* PHY_RST */
-	gpio_direction_output(GPIO_GP_5_0, 0);
-	mdelay(20);
-	gpio_set_value(GPIO_GP_5_0, 1);
-	udelay(1);
 
 	/* sdhi0 */
 	gpio_request(GPIO_GP_4_22, NULL);
@@ -217,6 +261,10 @@ int board_eth_init(bd_t *bis)
 
 	val = enetaddr[4] << 8 | enetaddr[5];
 	writel(val, 0xEE7003C8);
+#endif
+
+#ifdef CONFIG_RAVB
+	ret = ravb_initialize(bis);
 #endif
 
 	return ret;
