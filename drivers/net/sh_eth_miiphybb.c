@@ -36,5 +36,17 @@ struct bb_miiphy_bus bb_miiphy_buses[] = {
 		.delay		= sh_eth_bb_delay,
 	},
 #endif
+#ifdef CONFIG_RAVB
+	{
+		.name		= "ravb",
+		.init		= ravb_bb_init,
+		.mdio_active	= ravb_bb_mdio_active,
+		.mdio_tristate	= ravb_bb_mdio_tristate,
+		.set_mdio	= ravb_bb_set_mdio,
+		.get_mdio	= ravb_bb_get_mdio,
+		.set_mdc	= ravb_bb_set_mdc,
+		.delay		= ravb_bb_delay,
+	},
+#endif
 };
 int bb_miiphy_buses_num = ARRAY_SIZE(bb_miiphy_buses);

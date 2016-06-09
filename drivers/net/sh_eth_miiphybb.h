@@ -30,3 +30,12 @@ extern int sh_eth_bb_get_mdio(struct bb_miiphy_bus *bus, int *v);
 extern int sh_eth_bb_set_mdc(struct bb_miiphy_bus *bus, int v);
 extern int sh_eth_bb_delay(struct bb_miiphy_bus *bus);
 #endif
+#ifdef CONFIG_RAVB
+extern int ravb_bb_init(struct bb_miiphy_bus *bus);
+extern int ravb_bb_mdio_active(struct bb_miiphy_bus *bus);
+extern int ravb_bb_mdio_tristate(struct bb_miiphy_bus *bus);
+extern int ravb_bb_set_mdio(struct bb_miiphy_bus *bus, int v);
+extern int ravb_bb_get_mdio(struct bb_miiphy_bus *bus, int *v);
+extern int ravb_bb_set_mdc(struct bb_miiphy_bus *bus, int v);
+extern int ravb_bb_delay(struct bb_miiphy_bus *bus);
+#endif
